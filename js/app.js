@@ -3,6 +3,10 @@
 
   var STORAGE_KEY = "canteen_residents_v1";
   var CHOICES_KEY = "canteen_meal_choices_v1";
+  var LEAVE_KEY = "canteen_leave_times_v1";
+
+  /** 切换人员前记住上一人，用于保存其请假时间 */
+  var lastSelectedResidentId = "";
 
   function uid() {
     return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -70,6 +74,44 @@
       CHOICES_KEY,
       JSON.stringify({ day: todayStr(), map: cleaned })
     );
+  }
+
+  /** 每人独立的请假起止（与餐别 leave 绑定，按日） */
+  function loadLeaveMap() {
+    try {
+      var raw = localStorage.getItem(LEAVE_KEY);
+      if (!raw) return {};
+      var o = JSON.parse(raw);
+      if (o && o.day === todayStr() && o.map && typeof o.map === "object") return o.map;
+    } catch (e) {}
+    return {};
+  }
+
+  function persistLeaveTimes() {
+    localStorage.setItem(
+      LEAVE_KEY,
+      JSON.stringify({ day: todayStr(), map: state.leaveTimes })
+    );
+  }
+
+  function getLeaveForPerson(id) {
+    var t = state.leaveTimes[id];
+    return {
+      start: (t && t.start) || "",
+      end: (t && t.end) || "",
+    };
+  }
+
+  function setLeaveForPerson(id, start, end) {
+    if (!id) return;
+    var s = start || "";
+    var e = end || "";
+    if (!s && !e) {
+      delete state.leaveTimes[id];
+    } else {
+      state.leaveTimes[id] = { start: s, end: e };
+    }
+    persistLeaveTimes();
   }
 
   function setChoiceForPerson(id, meal) {
@@ -160,6 +202,7 @@
     residents: [],
     seed: [],
     choices: {},
+    leaveTimes: {},
     editSnapshot: null,
   };
 
@@ -196,11 +239,22 @@
     if (!id) {
       meal.value = "LD";
       toggleLeave(false);
+      els.leaveStart.value = "";
+      els.leaveEnd.value = "";
       return;
     }
     var m = getMealForPerson(id);
     meal.value = m === "leave" ? "leave" : m === "L" ? "L" : m === "D" ? "D" : "LD";
-    toggleLeave(meal.value === "leave");
+    var showLeave = meal.value === "leave";
+    toggleLeave(showLeave);
+    if (showLeave) {
+      var t = getLeaveForPerson(id);
+      els.leaveStart.value = t.start;
+      els.leaveEnd.value = t.end;
+    } else {
+      els.leaveStart.value = "";
+      els.leaveEnd.value = "";
+    }
   }
 
   function toggleLeave(show) {
@@ -280,7 +334,9 @@
           return x.id !== pid;
         });
         delete state.choices[pid];
+        delete state.leaveTimes[pid];
         persistChoices();
+        persistLeaveTimes();
         renderEditList();
         updateStats();
       });
@@ -312,7 +368,16 @@
     Object.keys(state.choices).forEach(function (id) {
       if (!ids[id]) delete state.choices[id];
     });
+    Object.keys(state.leaveTimes).forEach(function (id) {
+      if (!ids[id]) delete state.leaveTimes[id];
+    });
     persistChoices();
+    persistLeaveTimes();
+  }
+
+  function saveCurrentLeaveInputsForPerson(id) {
+    if (!id || getMealForPerson(id) !== "leave") return;
+    setLeaveForPerson(id, els.leaveStart.value, els.leaveEnd.value);
   }
 
   function init() {
@@ -325,26 +390,53 @@
         state.residents = state.seed.slice();
       }
       state.choices = loadChoicesMap();
+      state.leaveTimes = loadLeaveMap();
       pruneChoicesForResidents(state.residents);
       renderResidentOptions();
       syncMealSelectToChoice();
+      lastSelectedResidentId = els.residentSelect.value || "";
       updateStats();
     });
 
     els.residentSelect.addEventListener("change", function () {
+      saveCurrentLeaveInputsForPerson(lastSelectedResidentId);
+      lastSelectedResidentId = els.residentSelect.value || "";
       renderResidentOptions();
       syncMealSelectToChoice();
     });
 
     els.mealSelect.addEventListener("change", function () {
       var id = els.residentSelect.value;
-      var val = els.mealSelect.value;
-      toggleLeave(val === "leave");
       if (!id) return;
+      var prevMeal = getMealForPerson(id);
+      var val = els.mealSelect.value;
+      if (prevMeal === "leave") {
+        setLeaveForPerson(id, els.leaveStart.value, els.leaveEnd.value);
+      }
+      toggleLeave(val === "leave");
       setChoiceForPerson(id, val);
+      if (val === "leave") {
+        var t = getLeaveForPerson(id);
+        els.leaveStart.value = t.start;
+        els.leaveEnd.value = t.end;
+      } else {
+        els.leaveStart.value = "";
+        els.leaveEnd.value = "";
+      }
       renderResidentOptions();
       updateStats();
     });
+
+    function onLeaveInput() {
+      var id = els.residentSelect.value;
+      if (id && getMealForPerson(id) === "leave") {
+        setLeaveForPerson(id, els.leaveStart.value, els.leaveEnd.value);
+      }
+    }
+    els.leaveStart.addEventListener("change", onLeaveInput);
+    els.leaveEnd.addEventListener("change", onLeaveInput);
+    els.leaveStart.addEventListener("blur", onLeaveInput);
+    els.leaveEnd.addEventListener("blur", onLeaveInput);
 
     if (els.visitorInput) {
       els.visitorInput.addEventListener("input", updateStats);
@@ -372,6 +464,7 @@
       saveResidents(state.residents);
       renderResidentOptions();
       syncMealSelectToChoice();
+      lastSelectedResidentId = els.residentSelect.value || "";
       updateStats();
       closeModal(false);
     });
@@ -391,11 +484,15 @@
     function applySeedReset() {
       state.residents = state.seed.slice();
       state.choices = {};
+      state.leaveTimes = {};
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(CHOICES_KEY);
+      localStorage.removeItem(LEAVE_KEY);
       saveResidents(state.residents);
+      lastSelectedResidentId = "";
       renderResidentOptions();
       syncMealSelectToChoice();
+      lastSelectedResidentId = els.residentSelect.value || "";
       updateStats();
       renderEditList();
     }
