@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>食堂报餐</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <h1>食堂报餐</h1>
+    <p class="sub">全员默认 L+D；选人后改餐别仅影响统计。名单与今日餐别保存在本机浏览器</p>
+
+    <section aria-labelledby="sec-stats">
+      <h2 id="sec-stats">今日人数统计</h2>
+      <div class="stats-row">
+        <span class="stat-pill" id="statsL">—</span>
+        <span class="stat-pill" id="statsD">—</span>
+      </div>
+      <p class="stat-time" id="statsTime"></p>
+    </section>
+
+    <section aria-labelledby="sec-resident">
+      <h2 id="sec-resident">常驻人员</h2>
+      <div class="field">
+        <label for="residentSelect">人员</label>
+        <select id="residentSelect"></select>
+      </div>
+      <div class="field">
+        <label for="mealSelect">餐别</label>
+        <select id="mealSelect">
+          <option value="LD">L+D（午+晚）</option>
+          <option value="L">仅 L（午）</option>
+          <option value="D">仅 D（晚）</option>
+          <option value="leave">Leave</option>
+        </select>
+      </div>
+      <div class="leave-extra" id="leaveExtra">
+        <div class="field">
+          <label for="leaveStart">请假开始（精确到时）</label>
+          <input type="datetime-local" id="leaveStart" step="3600" />
+        </div>
+        <div class="field">
+          <label for="leaveEnd">请假结束</label>
+          <input type="datetime-local" id="leaveEnd" step="3600" />
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="sec-visitor">
+      <h2 id="sec-visitor">访客</h2>
+      <div class="field">
+        <label for="visitorInput">份数（例：L+D、2L+3D）</label>
+        <textarea id="visitorInput" placeholder="例如 L+D 或 2L+3D" rows="2"></textarea>
+      </div>
+    </section>
+
+    <section>
+      <div class="toolbar">
+        <button type="button" class="btn btn-secondary" id="btnEditResidents">编辑常驻名单</button>
+      </div>
+      <p class="hint">此处只维护姓名；默认餐别为 L+D。在主界面选择人员并修改餐别后，统计按更新后的结果计算。每日自动清空「今日餐别」记录。</p>
+    </section>
+
+    <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modalTitle">编辑常驻人员</h3>
+          <button type="button" class="btn btn-secondary btn-small" id="modalClose">关闭</button>
+        </div>
+        <div class="modal-body">
+          <div class="toolbar">
+            <button type="button" class="btn btn-primary btn-small" id="btnAddRow">添加一行</button>
+            <button type="button" class="btn btn-secondary btn-small" id="btnResetResidents">恢复初始名单</button>
+          </div>
+          <div id="editList"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelModal">取消</button>
+          <button type="button" class="btn btn-primary" id="btnSaveResidents">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>
