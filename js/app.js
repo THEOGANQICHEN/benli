@@ -233,14 +233,21 @@
     }
   }
 
+  /** 先清空再写入，避免部分浏览器换人时 datetime-local 仍显示上一人的值 */
+  function setLeaveInputs(start, end) {
+    els.leaveStart.value = "";
+    els.leaveEnd.value = "";
+    if (start) els.leaveStart.value = start;
+    if (end) els.leaveEnd.value = end;
+  }
+
   function syncMealSelectToChoice() {
     var id = els.residentSelect.value;
     var meal = els.mealSelect;
     if (!id) {
       meal.value = "LD";
       toggleLeave(false);
-      els.leaveStart.value = "";
-      els.leaveEnd.value = "";
+      setLeaveInputs("", "");
       return;
     }
     var m = getMealForPerson(id);
@@ -249,11 +256,9 @@
     toggleLeave(showLeave);
     if (showLeave) {
       var t = getLeaveForPerson(id);
-      els.leaveStart.value = t.start;
-      els.leaveEnd.value = t.end;
+      setLeaveInputs(t.start, t.end);
     } else {
-      els.leaveStart.value = "";
-      els.leaveEnd.value = "";
+      setLeaveInputs("", "");
     }
   }
 
@@ -417,11 +422,9 @@
       setChoiceForPerson(id, val);
       if (val === "leave") {
         var t = getLeaveForPerson(id);
-        els.leaveStart.value = t.start;
-        els.leaveEnd.value = t.end;
+        setLeaveInputs(t.start, t.end);
       } else {
-        els.leaveStart.value = "";
-        els.leaveEnd.value = "";
+        setLeaveInputs("", "");
       }
       renderResidentOptions();
       updateStats();
